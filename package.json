@@ -9,7 +9,8 @@
                 "mongodb": "*",
                 "monk": "*",
                 "body-parser": "*",
-                "underscore": "*"
+                "underscore": "*",
+                "async": "*"
         },
         "author": "developer"
 }

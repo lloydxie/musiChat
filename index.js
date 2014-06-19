@@ -1,8 +1,10 @@
 var express = require('express');
 var app = express();
 var port = 3700;
+var async = require('async');
 
-//var _ = require('underscore');
+// include database functions
+var database = require('./database.js');
 
 // so you can find current username using the socket
 var sockid_to_username = {}
@@ -15,38 +17,12 @@ var sockid_to_username = {}
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded());
 
-//Database setup
-var mongo = require('mongodb');
-var monk = require('monk');
-var db = monk('localhost:27017/mydb');
-
 // set the views directory to the tpl directory that we made
 app.set('views', __dirname + '/tpl');
 
 // set the jade engine
 app.set('view engine', "jade");
 app.engine('jade', require('jade').__express);
-
-function login_to_chat (username, password, function_after) {
-    var err = true;
-    if ((username == null) || (password == null)) {
-        function_after(err, null);
-    }
-    var collection = db.get('users');
-    collection.find({
-        "username": username,
-        "password": password
-    }, function (err, docs) {
-        if (err) {
-            //Error accessing user database
-            function_after(err, null);
-        } else {
-            err = false;
-            function_after(err, docs);
-        }
-    });
-}
-
 
 // set up server that renders the page when a request is made
 app.get("/", function (req, res) {
@@ -64,39 +40,26 @@ app.post('/adduser', function (req, res) {
     var userName = req.body.username;
     // should be encrypted 
     var userPwd = req.body.password;
-    var collection = db.get('users');
 
     if (userName == null || userPwd == null) {
         res.send("Username or password is empty");
     }
 
     //check if username is already taken
-    collection.find({
-            "username": userName
-    }, function (err, cursor) {
+    database.get_user_count(userName, null, function (err, count) {
         if (err) {
             console.log("There was an error accessing the database!");
+        } else if (count <= 0) {
+            database.insert_user(userName, userPwd, function (err, doc) {
+                if (err) 
+                    res.send("There was a problem adding the information to the database");
+                else {
+                    res.location("/");
+                    res.redirect("/");
+                }
+            });
         } else {
-            //count how many times the username occurs in the database
-            // FOR SOME REASON cursor.count() DOESN'T WORK 
-            // seems like cursor is an array of data instead of an iterator so you don't have to do count()
-            if (cursor.length <= 0) {
-                    //TODO: unencrypt password to store in database
-                    var encrypted_password = userPwd;
-                    collection.insert({
-                        "username" : userName,
-                        "password" : encrypted_password
-                    }, function (err, doc) {
-                        if (err) {
-                            res.send("There was a problem adding the information to the database");
-                        } else {
-                            res.location("/");
-                            res.redirect("/");
-                        }     
-                    });
-            } else {
-                res.send("There is already an account with this username");
-            }
+            res.send("There is already an account with this username");
         }
     });
 });
@@ -141,24 +104,22 @@ io.sockets.on('connection', function (socket) {
             if (already_registered) {
                 socket.emit('message', { message: 'You have already logged in' });
             } else {
-                var collection = db.get('users');
-                collection.find({
-                    "username": data.username,
-                    "password": data.password
-                }, function (err, cursor) {
+                database.get_user_count(data.username, data.password, function (err, count) {
                     if (err) {
-                        //Error accessing user database
                         console.log("There was an error accessing the database!");
+                    } else if (count > 0) {
+                        socket.emit('message', { message: 'Welcome to the chat' });
+                        socket.join('registered');
+                        io.sockets.emit('message', { message: data.username + " has connected to the server" });
+                        sockid_to_username[socket.id] = data.username;
                     } else {
-                        if (cursor.length > 0) {
-                            socket.emit('message', { message: 'welcome to the chat' });
-                            socket.join('registered');
-                            io.sockets.emit('message', { message: data.username + " has connected to the server" });
-                            // map the current socketid to the username
-                            sockid_to_username[socket.id] = data.username;
-                        } else {
-                            socket.emit('message', { message: 'You have not signed up yet' });
-                        }
+                        database.get_user_count(data.username, null, function (err, count) {
+                            if (count && count > 0) {
+                                socket.emit('message', { message: 'Your username or password was incorrect' });
+                            } else {
+                                socket.emit('message', { message: "You haven't signed up yet" });
+                            }
+                        });
                     }
                 });
             }
