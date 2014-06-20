@@ -129,6 +129,27 @@ io.sockets.on('connection', function (socket) {
             }
         });
 
+        // when client wants to send private message, find the client where it has to be sent
+        socket.on('send-private', function (data) {
+            if (sockid_to_username[socket.id] != null) {
+                var sent_message = false;
+                for (var key in sockid_to_username) {
+                    // if socket id's mapped username matches the client to receive the message
+                    if (sockid_to_username[key] === data.receiver) {
+                        // send to that socket and your socket
+                        socket.to(key).emit('message', data);
+                        socket.emit('message', data);
+                        sent_message = true;
+                    }
+
+                }
+                if (!sent_message)
+                   socket.emit('message', { message: 'User is either not online or does not exist' });
+            } else {
+                socket.emit('message', { message: 'You have to login before chatting' });
+            }
+        });
+
         socket.on('disconnect', function () {
             // emit disconnected message
             if (sockid_to_username[socket.id] != null) {

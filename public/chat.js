@@ -17,6 +17,7 @@ window.onload = function () {
     var loginButton = document.getElementById("login");
     var content = document.getElementById('content');
     var content_users = document.getElementById('userlist');
+    var private_user = document.getElementById('private');
     var name = document.getElementById('name');
     var loggedin = false;
 
@@ -27,8 +28,15 @@ window.onload = function () {
         //generate the html for all of the messages in the list
         var html = '';
         for (var i = 0; i < messageList.length; i++) {
-            html += '<b>' + (messageList[i].username ? messageList[i].username : 'Server') + ': </b>';
-            html += messageList[i].message + '<br />';
+            if (messageList[i].receiver) {
+                html += '( <b>' + (messageList[i].username ? messageList[i].username : 'Server') + ' -> ' + messageList[i].receiver + ': </b>';
+                html += messageList[i].message + ' )';
+                html += '<br />';
+            } else {
+                html += '<b>' + (messageList[i].username ? messageList[i].username : 'Server') + ': </b>';
+                html += messageList[i].message;
+                html += '<br />';
+            }
         }
         //set the list's HTML to show all of the messages
         content.innerHTML = html;
@@ -83,9 +91,15 @@ window.onload = function () {
 
     sendButton.onclick = sendMessage = function () {
         var text = field.value;
-        // when user clicks the button send the value in the text field to the socket
-        socket.emit('send', { message: text, username: username.value });
-        field.value = "";
+        var private_text = private_user.value;
+        if (private_text === "") {
+            // when user clicks the button send the value in the text field to the socket
+            socket.emit('send', { message: text, username: username.value });
+            field.value = "";
+        } else {
+            console.log(private_text);
+            socket.emit('send-private', { message: text, username: username.value, receiver: private_text });
+        }
     };
 
     loginButton.onclick = function () {
