@@ -73,22 +73,6 @@ var io = require('socket.io').listen(app.listen(port));
 
 console.log("Listening on port " + port);
 
-// function to check if the client socket is in the room
-function clientSocketInRoom(roomId, clientSocket) {
-    var room = io.sockets.adapter.rooms[roomId];
-    if (room) {
-        for (var id in room) {
-            //res.push(io.sockets.adapter.nsp.connected[id]);
-            if (id === clientSocket.id) {
-                return true;
-            }
-        }
-    } else {
-        return false;
-    }
-    return false;
-}
-
 // socket passed in function (socket) is the client's socket
 io.sockets.on('connection', function (socket) {
         socket.emit('message', { message: 'Hello, please login to chat'});
@@ -110,8 +94,8 @@ io.sockets.on('connection', function (socket) {
                     } else if (count > 0) {
                         socket.emit('message', { message: 'Welcome to the chat' });
                         socket.join('registered');
-                        io.sockets.emit('message', { message: data.username + " has connected to the server" });
                         sockid_to_username[socket.id] = data.username;
+                        io.sockets.emit('userlogin', { username: data.username });
                     } else {
                         database.get_user_count(data.username, null, function (err, count) {
                             if (count && count > 0) {
@@ -124,11 +108,21 @@ io.sockets.on('connection', function (socket) {
                 });
             }
         });
+
+        // send list of users when requested
+        socket.on('list', function (data) {
+            var username_list = [];
+            for (var key in sockid_to_username) {
+                if (sockid_to_username[key])
+                    username_list.push(sockid_to_username[key]);
+            }
+            socket.emit('list', { list: username_list });
+        });
+        
         // when client sends data, emit data to other clients
         socket.on('send', function (data) {
             //if the socket is registered, send the message
             if (sockid_to_username[socket.id] != null) {
-                //io.sockets.in('registered').emit('message', data);
                 io.sockets.emit('message', data);
             } else {
                 socket.emit('message', { message: 'You have to login before chatting' });
@@ -139,8 +133,8 @@ io.sockets.on('connection', function (socket) {
             // emit disconnected message
             if (sockid_to_username[socket.id] != null) {
                 var disconnected_uname = sockid_to_username[socket.id];
-                io.sockets.emit('message', { message: sockid_to_username[socket.id] + " has disconnected from the server" });
                 sockid_to_username[socket.id] = null;
+                io.sockets.emit('userlogout', { username: disconnected_uname });
             }
         });
 });
