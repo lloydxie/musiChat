@@ -7,7 +7,21 @@ var async = require('async');
 var database = require('./database.js');
 
 // so you can find current username using the socket
-var sockid_to_username = {}
+var sockid_to_username = {};
+
+// temporarily save last 20 public messages so when new user connects they can see them
+function messageStore() {
+    this.pastMessages = [];
+}
+messageStore.prototype.add_message = function (message) {
+    // remove oldest messages first
+    while (this.pastMessages.length + 1 > 20) {
+        this.pastMessages.shift();
+    }
+    this.pastMessages.push(message);
+}
+
+var messages = new messageStore();
 
 //you need this to parse requests!!!!!
 //app.use(express.json()); //this doesn't work!!!
@@ -76,6 +90,9 @@ console.log("Listening on port " + port);
 // socket passed in function (socket) is the client's socket
 io.sockets.on('connection', function (socket) {
         socket.emit('message', { message: 'Hello, please login to chat'});
+        for (var i = 0; i < messages.pastMessages.length; i++) {
+            socket.emit('message', messages.pastMessages[i]);
+        }
         //if it receives a login request, check database for existing users
         socket.on('login', function (data) {
             var already_registered = false;
@@ -124,6 +141,7 @@ io.sockets.on('connection', function (socket) {
             //if the socket is registered, send the message
             if (sockid_to_username[socket.id] != null) {
                 io.sockets.emit('message', data);
+                messages.add_message(data);
             } else {
                 socket.emit('message', { message: 'You have to login before chatting' });
             }
