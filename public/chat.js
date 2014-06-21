@@ -17,7 +17,6 @@ window.onload = function () {
     var loginButton = document.getElementById("login");
     var content = document.getElementById('content');
     var content_users = document.getElementById('userlist');
-    var private_user = document.getElementById('private');
     var name = document.getElementById('name');
     var loggedin = false;
 
@@ -45,7 +44,7 @@ window.onload = function () {
     function reload_user_list() {
         var html = '';
         for (var i = 0; i < userList.length; i++) {
-            html += userList[i] + '<br />';
+            html += "<option value=\"" + userList[i] + "\">" + userList[i] + "</option>";
         }
         content_users.innerHTML = html;
     }
@@ -91,14 +90,16 @@ window.onload = function () {
 
     sendButton.onclick = sendMessage = function () {
         var text = field.value;
-        var private_text = private_user.value;
+        var private_text = content_users.value;
         if (private_text === "") {
             // when user clicks the button send the value in the text field to the socket
             socket.emit('send', { message: text, username: username.value });
             field.value = "";
         } else {
-            console.log(private_text);
-            socket.emit('send-private', { message: text, username: username.value, receiver: private_text });
+            for (var i = 0; i < content_users.length; i++) {
+                if (content_users.options[i].selected)
+                    socket.emit('send-private', { message: text, username: username.value, receiver: content_users.options[i].value });
+            }
         }
     };
 

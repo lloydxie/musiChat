@@ -3,6 +3,6 @@ extends layout
 block content
     h1= title
     form#formAddUser(name="adduser",method="post",action="/adduser")
-        input#inputUserName(type="text", placeholder="username", name="username")
-        input#inputPassword(type="text", placeholder="useremail", name="password")
+        input#inputUserName(placeholder="username", name="username")
+        input#inputPassword(placeholder="password", name="password", type="password")
         button#btnSubmit(type="submit") submit

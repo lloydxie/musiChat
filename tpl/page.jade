@@ -6,16 +6,15 @@ html
         script(src='/socket.io/socket.io.js')
     body
         .controls
-            | Name:
-            #content(style='width: 500px; height: 300px; margin: 0 0 20px 0; border: solid 1px #999; overflow-y: scroll;')
-            #userlist(style='width: 500px; height: 300px; margin: 0 0 20px 0; border: solid 1px #999; overflow-y: scroll;')
+            #content(style='width: 400px; height: 300px; float: left; margin: 0 0 10px 0; border: solid 1px #999; overflow-y: scroll;')
+            select#userlist(multiple='multiple', style='width: 200px; height: 300px; margin: 0 0 20px 0; border: solid 1px #999; overflow-y: scroll;')
             br
-            input#username(style='width:350px;')
+            input#username(style='width:350px;', placeholder="username")
             br
-            input#password(style='width:350px;')
+            input#password(style='width:350px;', placeholder="password", type="password")
             br
-            input#login(type='button', value='send')
+            input#login(type='button', value='login')
             br
-            input#field(style='width:350px;')
-            input#private(style='width:350px;')
+            br
+            input#field(style='width:350px;', placeholder="type here to chat")
             input#send(type='button', value='send')
