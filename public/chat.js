@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    $("#field").keyup(function (e) {
+    $("#chatField").keyup(function (e) {
         if (e.keyCode === 13) {
             sendMessage();
         }
@@ -9,44 +9,106 @@ $(document).ready(function () {
 window.onload = function () {
     var messageList = [];
     var userList = [];
+    var my_username = null;
     var socket = io.connect('http://localhost:3700');
-    var field = document.getElementById("field");
-    var sendButton = document.getElementById("send");
-    var username = document.getElementById("username");
-    var password = document.getElementById("password");
-    var loginButton = document.getElementById("login");
-    var content = document.getElementById('content');
-    var content_users = document.getElementById('userlist');
-    var name = document.getElementById('name');
-    var loggedin = false;
+
+    // login controls
+    var loginUsername = document.getElementById('loginUsername');
+    var loginPassword = document.getElementById('loginPassword');
+    var loginButton = document.getElementById('loginButton');
+    var loggedin = document.getElementById('loggedin');
+
+    // signup controls
+    var signupUsername = document.getElementById('signupUsername');
+    var signupPassword = document.getElementById('signupPassword');
+    var signupPasswordReenter = document.getElementById('signupPasswordReenter');
+    var signupButton = document.getElementById('signupButton');
+    var warningMessage = document.getElementById('warningMessage');
+    warningMessage.innerHTML = "";
+
+    // chat controls
+    var chatbox = document.getElementById('chatbox');
+    var user_list = document.getElementById('userList');
+    var chatField = document.getElementById('chatField');
+    var sendButton = document.getElementById('sendButton');
+
+    // dialog boxes
+    var modalLogin = document.getElementById('modalLogin');
+    var modalSignup = document.getElementById('modalSignup');
 
     // grab list of active users when first loading
     socket.emit('list');
 
+    function getLabelText(str, my_str) {
+        if (my_str == null) {
+            return "default";
+        } else if (str === my_str) {
+            return "success";
+        } else {
+            return "primary";
+        }
+    }
+
     function reload_message_list() {
         //generate the html for all of the messages in the list
         var html = '';
-        for (var i = 0; i < messageList.length; i++) {
+        for (var i = messageList.length - 1; i >= 0; i--) {
             if (messageList[i].receiver) {
-                html += '( <b>' + (messageList[i].username ? messageList[i].username : 'Server') + ' -> ' + messageList[i].receiver + ': </b>';
-                html += messageList[i].message + ' )';
-                html += '<br />';
-            } else {
-                html += '<b>' + (messageList[i].username ? messageList[i].username : 'Server') + ': </b>';
+                // private message
+                var username_test = messageList[i].username === my_username;
+                var receiver_test = messageList[i].receiver === my_username;
+                var username_label_text = getLabelText(messageList[i].username, my_username);
+                var receiver_label_text = getLabelText(messageList[i].receiver, my_username);
+                html += '<div class="alert alert-dismissable alert-info">';
+                html += '<button type="button" class="close" data-dismiss="alert">x</button>';
+                html += '<span class="label label-' + username_label_text + '">' + (username_test ? "You" : messageList[i].username) + '</span> ';
+                html += '<span class="label label-' + receiver_label_text + '">' + (receiver_test ? "You" : messageList[i].username)  + '</span> '; 
                 html += messageList[i].message;
-                html += '<br />';
+                html += '</div>';
+            } else if (messageList[i].username) {
+                // public message
+                var username_test = (messageList[i].username === my_username);
+                var label_text = getLabelText(messageList[i].username, my_username);
+                html += '<div class="alert alert-dismissable alert-success">';
+                html += '<button type="button" class="close" data-dismiss="alert">x</button>';
+                html += '<span class="label label-' + label_text + '">' + (username_test ? "You" : messageList[i].username) + '</span> ';
+                html += messageList[i].message;
+                html += '</div>';
+            } else {
+                // server message
+                html += '<div class="alert alert-dismissable alert-warning">';
+                html += '<button type="button" class="close" data-dismiss="alert">x</button>';
+                html += '<span class="label label-default">' + "Server" + '</span> ';
+                html += messageList[i].message;
+                html += '</div>';
             }
         }
         //set the list's HTML to show all of the messages
-        content.innerHTML = html;
+        chatbox.innerHTML = html;
     }
 
     function reload_user_list() {
         var html = '';
         for (var i = 0; i < userList.length; i++) {
-            html += "<option value=\"" + userList[i] + "\">" + userList[i] + "</option>";
+            if (userList[i] === my_username) {
+                //html += '<a href="#" class="list-group-item user_list" data-toggle="tooltip" data-placement="right" title="" data-original-title="You">' +
+                    //userList[i] + '</a>';
+            } else {
+                html += '<a href="#" class="list-group-item user_list">' + userList[i] + '</a>';
+            }
         }
-        content_users.innerHTML = html;
+        if (my_username)
+            loggedin.innerHTML = "Logged in as " + my_username;
+        user_list.innerHTML = html;
+
+        var elements = document.getElementsByClassName('user_list');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].onclick = function () {
+                if (this.innerHTML !== my_username) {
+                    this.classList.toggle('active');
+                }
+            }
+        }
     }
 
     // if a socket receives a message
@@ -89,25 +151,54 @@ window.onload = function () {
     });
 
     sendButton.onclick = sendMessage = function () {
-        var text = field.value;
-        var private_text = content_users.value;
-        if (private_text === "") {
-            // when user clicks the button send the value in the text field to the socket
-            socket.emit('send', { message: text, username: username.value });
-            field.value = "";
-        } else {
-            for (var i = 0; i < content_users.length; i++) {
-                if (content_users.options[i].selected)
-                    socket.emit('send-private', { message: text, username: username.value, receiver: content_users.options[i].value });
+        var text = chatField.value;
+        var elements = document.getElementsByClassName('user_list');
+        var privateSent = false;
+        for (var i = 0; i < elements.length; i++) {
+            if (elements[i].classList.contains('active')) {
+                console.log(elements[i].innerHTML);
+                socket.emit('send-private', { message: text, username: my_username, receiver: elements[i].innerHTML });
+                privateSent = true;
             }
         }
+        if (!privateSent) {
+            socket.emit('send', { message: text, username: my_username });
+        }
+        chatField.value = "";
     };
 
     loginButton.onclick = function () {
-        var usernameText = username.value;
-        var passwordText = password.value;
+        var usernameText = loginUsername.value;
+        var passwordText = loginPassword.value;
         socket.emit('login', { username: usernameText, password: passwordText });
-        password.value = "";
+        my_username = usernameText;
+        loginUsername.value = "";
+        loginPassword.value = "";
     }
+
+    signupButton.onclick = function () {
+        var usernameText = signupUsername.value;
+        var passwordText = signupPassword.value;
+        var reenterPassword = signupPasswordReenter.value;
+        if (usernameText === "") {
+            warningMessage.innerHTML = "Please enter a username";
+        } else if (passwordText === reenterPassword) {
+            socket.emit('signup', { username: usernameText, password: passwordText });
+            socket.on('signup-response', function (data) {
+                if (data.response === "OK") {
+                    socket.emit('login', { username: usernameText, password: passwordText });
+                    $('#modalSignup').modal('hide');
+                } else {
+                    warningMessage.innerHTML = data.response;
+                }
+            });
+        } else {
+            warningMessage.innerHTML = "The two password fields are not the same";
+        }
+        signupUsername.value = "";
+        signupPassword.value = "";
+        signupPasswordReenter.value = "";
+    };
+
 }
 

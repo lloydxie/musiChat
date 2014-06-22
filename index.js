@@ -40,7 +40,7 @@ app.engine('jade', require('jade').__express);
 
 // set up server that renders the page when a request is made
 app.get("/", function (req, res) {
-    res.render("page");
+    res.render("chat");
 });
 
 // display the form to add new user
@@ -109,7 +109,6 @@ io.sockets.on('connection', function (socket) {
                     if (err) {
                         console.log("There was an error accessing the database!");
                     } else if (count > 0) {
-                        socket.emit('message', { message: 'Welcome to the chat' });
                         socket.join('registered');
                         sockid_to_username[socket.id] = data.username;
                         io.sockets.emit('userlogin', { username: data.username });
@@ -121,6 +120,34 @@ io.sockets.on('connection', function (socket) {
                                 socket.emit('message', { message: "You haven't signed up yet" });
                             }
                         });
+                    }
+                });
+            }
+        });
+
+        socket.on('signup', function (data) {
+            var userName = data.username;
+            var userPwd = data.password;
+
+            if (userName == null || userPwd == null) {
+                socket.emit('signup-response', { response: "Username or password is empty" });
+            } else if (userName.trim() === "" || userPwd.trim() === "") {
+                socket.emit('signup-response', { response: "Username or password is empty" });
+            } else {
+                //check if username is already taken
+                database.get_user_count(userName, null, function (err, count) {
+                    if (err) {
+                        console.log("There was an error accessing the database!");
+                    } else if (count <= 0) {
+                        database.insert_user(userName, userPwd, function (err, doc) {
+                            if (err) {
+                                socket.emit('signup-response', { response: "There was a problem adding the information to the database" } );
+                            } else {
+                                socket.emit('signup-response', { response: "OK" });
+                            }
+                        });
+                    } else {
+                        socket.emit('signup-response', { response: "There is already an account with this username" });
                     }
                 });
             }
