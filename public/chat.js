@@ -62,7 +62,7 @@ window.onload = function () {
                 html += '<div class="alert alert-dismissable alert-info">';
                 html += '<button type="button" class="close" data-dismiss="alert">x</button>';
                 html += '<span class="label label-' + username_label_text + '">' + (username_test ? "You" : messageList[i].username) + '</span> ';
-                html += '<span class="label label-' + receiver_label_text + '">' + (receiver_test ? "You" : messageList[i].username)  + '</span> '; 
+                html += '<span class="label label-' + receiver_label_text + '">' + (receiver_test ? "You" : messageList[i].receiver)  + '</span> '; 
                 html += messageList[i].message;
                 html += '</div>';
             } else if (messageList[i].username) {
@@ -187,6 +187,7 @@ window.onload = function () {
             socket.on('signup-response', function (data) {
                 if (data.response === "OK") {
                     socket.emit('login', { username: usernameText, password: passwordText });
+                    my_username = usernameText;
                     $('#modalSignup').modal('hide');
                 } else {
                     warningMessage.innerHTML = data.response;
