@@ -2,9 +2,27 @@ var express = require('express');
 var app = express();
 var port = 3700;
 var async = require('async');
+var mongoose = require('mongoose');
 
 // include database functions
 var database = require('./database.js');
+
+mongoose.connect('mongodb://localhost/chat', function(err){
+  if(err){
+    console.log(err);
+  } else{
+      console.log('Connected to mongodb!');
+    }
+});
+
+var chatSchema = mongoose.Schema({
+  username: String,
+  message: String,
+  timeOfCreation: {type: Date, default: Date.now}
+  
+});
+
+var Chat = mongoose.model('Message', chatSchema);
 
 // so you can find current username using the socket
 var sockid_to_username = {};
@@ -167,6 +185,7 @@ io.sockets.on('connection', function (socket) {
         socket.on('send', function (data) {
             //if the socket is registered, send the message
             if (sockid_to_username[socket.id] != null) {
+                var newMessage = new Chat({
                 io.sockets.emit('message', data);
                 messages.add_message(data);
             } else {

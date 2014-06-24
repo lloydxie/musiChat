@@ -10,7 +10,8 @@
                 "monk": "*",
                 "body-parser": "*",
                 "underscore": "*",
-                "async": "*"
+                "async": "*",
+                "mongoose": "*"
         },
         "author": "developer"
 }
